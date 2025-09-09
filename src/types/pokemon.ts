@@ -3,6 +3,7 @@ export interface PokemonAbility {
     name: string;
     url: string;
   };
+  is_hidden?: boolean;
 }
 
 export interface PokemonStat {
@@ -12,8 +13,21 @@ export interface PokemonStat {
   };
 }
 
-export interface PokemonSprite {
-  front_default: string;
+export interface PokemonSprites {
+  front_default: string | null;
+  other?: {
+    ["official-artwork"]?: {
+      front_default: string | null;
+    };
+  };
+}
+
+export interface PokemonType {
+  slot: number;
+  type: {
+    name: string;
+    url: string;
+  };
 }
 
 export interface Pokemon {
@@ -23,7 +37,8 @@ export interface Pokemon {
   weight: number;
   abilities: PokemonAbility[];
   stats: PokemonStat[];
-  sprites: PokemonSprite;
+  sprites: PokemonSprites;
+  types: PokemonType[];
 }
 
 export interface PokemonListResult {

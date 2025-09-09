@@ -1,18 +1,21 @@
-import { NextResponse } from "next/server";
-import { Pokemon } from "@/types/pokemon";
+import { NextRequest, NextResponse } from "next/server";
 
-interface Params {
-  params: Promise<{ name: string }>;
-}
-
-export async function GET(req: Request, { params }: Params) {
-  const { name } = await params;
-  const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
+export async function GET(
+  _req: NextRequest,
+  ctx: { params: Promise<{ name: string }> }
+) {
+  const { name } = await ctx.params; 
+  const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`, {
+    next: { revalidate: 3600 },
+  });
 
   if (!res.ok) {
-    return NextResponse.json({ error: "Pokémon não encontrado" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Pokémon não encontrado" },
+      { status: res.status }
+    );
   }
- 
-  const data: Pokemon = await res.json();
+
+  const data = await res.json();
   return NextResponse.json(data);
 }
