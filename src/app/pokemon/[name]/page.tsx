@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import MatchupDialog from "@/components/MatchupDialog";
 
 type Props = {
   params: Promise<{ name: string }>;
@@ -76,6 +77,9 @@ export default async function PokemonPage({ params }: Props) {
                 </Badge>
               );
             })}
+          </div>
+          <div className="flex w-full justify-center md:justify-end">
+            <MatchupDialog name={pokemon.name} />
           </div>
         </CardHeader>
 

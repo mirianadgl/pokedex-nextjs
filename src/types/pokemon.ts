@@ -52,3 +52,10 @@ export interface PokemonListResponse {
   previous: string | null;
   results: PokemonListResult[];
 }
+
+export interface PokemonMatchups {
+  wins: string[];
+  losses: string[];
+}
+
+export type PokeApiPokemonTypes = Pick<Pokemon, "types">;
