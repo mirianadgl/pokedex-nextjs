@@ -53,9 +53,13 @@ export interface PokemonListResponse {
   results: PokemonListResult[];
 }
 
+export type MatchupSource = "ia" | "api";
+
 export interface PokemonMatchups {
   wins: string[];
   losses: string[];
+  source?: MatchupSource;
+  message?: string;
 }
 
 export type PokeApiPokemonTypes = Pick<Pokemon, "types">;

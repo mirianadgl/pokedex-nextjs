@@ -16,6 +16,12 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { PokemonMatchups } from "@/types/pokemon";
 
 function hasName(x: unknown): x is { name: string } {
@@ -30,7 +36,13 @@ function isAbortError(e: unknown): boolean {
   return hasName(e) && e.name === "AbortError";
 }
 
-export default function MatchupDialog({ name }: { name: string }) {
+export default function MatchupDialog({
+  name,
+  hasAI,
+}: {
+  name: string;
+  hasAI: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PokemonMatchups | null>(null);
@@ -69,9 +81,28 @@ export default function MatchupDialog({ name }: { name: string }) {
   }, [name]);
 
   useEffect(() => {
-    if (open) void load();
+    if (open && hasAI) void load();
     return () => abortRef.current?.abort();
-  }, [open, load]);
+  }, [open, hasAI, load]);
+
+  if (!hasAI) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button size="sm" className="gap-2" disabled aria-disabled>
+                Ver matchups (IA)
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="center">
+            Informe GEMINI_API_KEY
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

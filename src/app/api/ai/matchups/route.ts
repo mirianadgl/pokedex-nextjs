@@ -1,10 +1,7 @@
+// src/app/api/ai/matchups/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import type {
-  PokemonMatchups,
-  PokeApiPokemonTypes,
-} from "@/types/pokemon";
+import type { PokemonMatchups, PokeApiPokemonTypes } from "@/types/pokemon";
 import type { GeminiResponse } from "@/types/ai";
-import { error } from "console";
 
 type CacheEntry = { data: PokemonMatchups; expiresAt: number };
 
@@ -34,7 +31,6 @@ function normalizeNames(arr: unknown): string[] {
   );
   return Array.from(set).slice(0, 10);
 }
-
 function extractJson(text: string): PokemonMatchups {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -77,82 +73,6 @@ async function getPokemonTypes(name: string): Promise<string[]> {
   );
 }
 
-type Named = { name?: string; url?: string };
-type PokeApiTypeResponse = {
-  damage_relations?: {
-    double_damage_to?: Named[];
-    double_damage_from?: Named[];
-  };
-  pokemon?: { pokemon?: Named }[];
-};
-
-async function getTypeDetails(
-  typeName: string
-): Promise<PokeApiTypeResponse> {
-  return fetchJson<PokeApiTypeResponse>(
-    `https://pokeapi.co/api/v2/type/${encodeURIComponent(typeName)}`
-  );
-}
-
-async function pickPokemonByTypes(
-  types: string[],
-  excludeName: string,
-  limit: number
-): Promise<string[]> {
-  const out = new Set<string>();
-  const exclude = excludeName.toLowerCase();
-
-  for (const t of types) {
-    try {
-      const td = await getTypeDetails(t);
-      for (const entry of td.pokemon ?? []) {
-        const n = entry.pokemon?.name?.toLowerCase();
-        if (!n) continue;
-        if (n === exclude) continue;
-        out.add(n);
-        if (out.size >= limit) return Array.from(out);
-      }
-    } catch {
-        console.warn(`[PokeAPI] Erro de rede ao buscar "${name}":`, error);
-    }
-  }
-  return Array.from(out);
-}
-
-async function computeFallback(
-  pokemonName: string,
-  pokemonTypes: string[]
-): Promise<PokemonMatchups> {
-  const typeDetails = await Promise.all(
-    pokemonTypes.map((t) => getTypeDetails(t))
-  );
-
-  const winsTypeSet = new Set<string>();
-  const lossesTypeSet = new Set<string>();
-
-  for (const td of typeDetails) {
-    td.damage_relations?.double_damage_to?.forEach((n) => {
-      if (n?.name) winsTypeSet.add(n.name);
-    });
-    td.damage_relations?.double_damage_from?.forEach((n) => {
-      if (n?.name) lossesTypeSet.add(n.name);
-    });
-  }
-
-  const wins = await pickPokemonByTypes(
-    Array.from(winsTypeSet),
-    pokemonName,
-    10
-  );
-  const losses = await pickPokemonByTypes(
-    Array.from(lossesTypeSet),
-    pokemonName,
-    10
-  );
-
-  return { wins, losses };
-}
-
 function getFromCache(key: string): PokemonMatchups | null {
   const entry = CACHE.get(key);
   if (!entry) return null;
@@ -185,10 +105,12 @@ export async function POST(req: NextRequest) {
     const cacheKey = `matchups:${name}`;
     const cached = getFromCache(cacheKey);
     if (cached) {
+      const src = cached.source ?? "ia";
       return NextResponse.json(cached, {
         status: 200,
         headers: {
           "Cache-Control": "s-maxage=86400, stale-while-revalidate=3600",
+          "X-Matchup-Source": src,
         },
       });
     }
@@ -197,7 +119,6 @@ export async function POST(req: NextRequest) {
     try {
       types = await getPokemonTypes(name);
     } catch {
-        console.warn(`[PokeAPI] Erro de rede ao buscar "${name}":`, error);
     }
 
     try {
@@ -242,7 +163,6 @@ export async function POST(req: NextRequest) {
           .join("") ?? "";
 
       const parsed = extractJson(text);
-
       if (
         (parsed.wins?.length ?? 0) === 0 &&
         (parsed.losses?.length ?? 0) === 0
@@ -250,41 +170,30 @@ export async function POST(req: NextRequest) {
         throw new Error("LLM vazio");
       }
 
-      setToCache(cacheKey, parsed);
-      return NextResponse.json(parsed, {
+      const resultIA: PokemonMatchups = { ...parsed, source: "ia" };
+      setToCache(cacheKey, resultIA);
+      return NextResponse.json(resultIA, {
         status: 200,
         headers: {
           "Cache-Control": "s-maxage=86400, stale-while-revalidate=3600",
+          "X-Matchup-Source": "ia",
         },
       });
     } catch {
-      try {
-        if (types.length === 0) {
-          types = await getPokemonTypes(name);
-        }
-        const fallback = await computeFallback(name, types);
-        setToCache(cacheKey, fallback);
-        return NextResponse.json(fallback, {
-          status: 200,
+      const pm: PokemonMatchups = { wins: [], losses: [], source: "api" };
+      const message =
+        "Não foi possível comparar via IA. Revise o valor de GEMINI_API_KEY em .env.local e reinicie o servidor.";
+      setToCache(cacheKey, pm);
+      return NextResponse.json(
+        { ...pm, message },
+        {
+          status: 404,
           headers: {
-            "Cache-Control":
-              "s-maxage=86400, stale-while-revalidate=3600",
+            "Cache-Control": "s-maxage=86400, stale-while-revalidate=3600",
+            "X-Matchup-Source": "api",
           },
-        });
-      } catch (fallbackErr) {
-        const msg =
-          fallbackErr instanceof Error
-            ? fallbackErr.message
-            : String(fallbackErr);
-        return NextResponse.json(
-          {
-            error:
-              "Não foi possível gerar matchups (LLM e fallback falharam)",
-            details: msg,
-          },
-          { status: 500 }
-        );
-      }
+        }
+      );
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);

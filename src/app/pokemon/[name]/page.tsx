@@ -1,5 +1,6 @@
 import { getPokemonByName } from "@/services/pokemonService";
 import Image from "next/image";
+import type { Pokemon } from "@/types/pokemon";
 import {
   Card,
   CardContent,
@@ -9,9 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import MatchupDialog from "@/components/MatchupDialog";
 
-type Props = {
-  params: Promise<{ name: string }>;
-};
+type Props = { params: Promise<{ name: string }> };
 
 function toKg(hg: number) {
   return (hg / 10).toFixed(1);
@@ -46,7 +45,9 @@ const typeColor: Record<string, string> = {
 
 export default async function PokemonPage({ params }: Props) {
   const { name } = await params;
-  const pokemon = await getPokemonByName(name);
+  const pokemon: Pokemon = await getPokemonByName(name);
+
+  const hasAI = Boolean(process.env.GEMINI_API_KEY);
 
   const art =
     pokemon.sprites.other?.["official-artwork"]?.front_default ??
@@ -58,7 +59,7 @@ export default async function PokemonPage({ params }: Props) {
   return (
     <main className="mx-auto max-w-5xl p-6">
       <Card className="overflow-hidden border-gray-200 bg-white">
-        <CardHeader className="items-center space-y-2 text-center">
+        <CardHeader className="items-center space-y-3 text-center">
           <CardTitle className="text-3xl font-bold tracking-tight capitalize">
             {cap(pokemon.name)}{" "}
             <span className="text-gray-400">#{pokemon.id}</span>
@@ -68,18 +69,15 @@ export default async function PokemonPage({ params }: Props) {
             {pokemon.types.map((t) => {
               const cls = typeColor[t.type.name] ?? "bg-gray-200 text-gray-900";
               return (
-                <Badge
-                  key={t.type.name}
-                  className={`${cls} capitalize`}
-                  variant="secondary"
-                >
+                <Badge key={t.type.name} className={`${cls} capitalize`}>
                   {t.type.name}
                 </Badge>
               );
             })}
           </div>
+
           <div className="flex w-full justify-center md:justify-end">
-            <MatchupDialog name={pokemon.name} />
+            <MatchupDialog name={pokemon.name} hasAI={hasAI} />
           </div>
         </CardHeader>
 
@@ -117,8 +115,8 @@ export default async function PokemonPage({ params }: Props) {
                 {pokemon.abilities.map((a) => (
                   <Badge
                     key={a.ability.name}
-                    variant={a.is_hidden ? "outline" : "secondary"}
                     className="capitalize"
+                    variant="secondary"
                     title={a.is_hidden ? "Habilidade oculta" : "Habilidade"}
                   >
                     {a.ability.name}
