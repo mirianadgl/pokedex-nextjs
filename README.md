@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pokédex — Next.js + TypeScript (front + back unificados)
 
-## Getting Started
+Aplicação de Pokédex construída com Next.js (App Router) e TypeScript, consumindo a PokeAPI. O projeto usa o back-end do próprio Next (API Routes) para paginação, busca e detalhes, e oferece uma funcionalidade de IA opcional para sugerir matchups (contra quem o Pokémon tende a ganhar/perder).
 
-First, run the development server:
+Por que Next.js (unificado com o servidor)?
+
+- Front e back no mesmo projeto: API Routes para o back-end e páginas/Componentes React para o front.
+- Cache nativo: revalidate por rota para performance.
+- Tipagem end-to-end com TypeScript.
+
+---
+
+## Requisitos
+
+- Node.js 18+ (recomendado 20+)
+- npm (ou pnpm/yarn)
+
+---
+
+## Como rodar o projeto
+
+1. Instale as dependências
+
+```bash
+npm install
+```
+
+2. (Opcional) IA com Gemini
+
+- Se quiser usar o botão “Ver matchups (IA)” na página de detalhes, crie um arquivo `.env.local` na raiz com sua chave do Google AI Studio.
+
+```bash
+# .env.local
+GEMINI_API_KEY=coloque_sua_chave_do_Google_AI_Studio_aqui
+```
+
+3. shadcn/ui (se necessário)
+
+- O projeto usa componentes do shadcn/ui (button, badge, card, dialog, skeleton).
+- Se a pasta `src/components/ui/` não tiver esses componentes, gere-os com o CLI:
+
+```bash
+npx shadcn@latest add button badge card dialog skeleton
+```
+
+4. Permitir imagens remotas (sprites e artwork)
+
+- Confirme se seu `next.config.ts` permite imagens do GitHub (PokeAPI sprites/artwork):
+
+```ts
+// next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "raw.githubusercontent.com" },
+    ],
+  },
+};
+
+export default nextConfig;
+```
+
+5. Ambiente de desenvolvimento
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Acesse: http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Uso
 
-## Learn More
+- Lista: http://localhost:3000
+  - Paginação: `/?page=1`, `/?page=2`, ...
+  - Busca: digite no Header; a URL é atualizada para `?q=nome&page=1` (com debounce).
+- Detalhes: http://localhost:3000/pokemon/{nome}
+  - Botão “Ver matchups (IA)”: abre um Dialog e consulta `/api/ai/matchups`. Se `GEMINI_API_KEY` estiver configurada, usa o Gemini.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Endpoints do backend (API Routes do Next)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- GET `/api/pokemon?limit=20&offset=0&q={opcional}`
 
-## Deploy on Vercel
+- GET `/api/pokemon/[name]`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- POST `/api/ai/matchups`
+  - Body: `{ "name": "pikachu" }`
+  - Resposta: `{ "wins": string[], "losses": string[] }`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Cache
+
+- PokeAPI: fetch com `revalidate: 86400` (24h).
+
+---
+
+## API Key do Google Gemini
+
+- Acesse: https://aistudio.google.com/.
+- Faça login com sua Conta Google.
+- Vá até a seção de Gerenciamento de API Keys.
+- Clique para criar uma nova chave (API key).
+- Copie a chave gerada e substitua o valor em `GEMINI_API_KEY` no `.env.local`.
